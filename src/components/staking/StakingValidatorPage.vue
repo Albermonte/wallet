@@ -82,18 +82,21 @@ export default defineComponent({
                     validator: address,
                 });
             } else {
-                await sendStaking({
-                    type: StakingTransactionType.UPDATE_STAKER,
-                    delegation: address,
-                    value: 1, // Unused in transaction
-                    sender: activeAddress.value!,
-                    recipient: STAKING_CONTRACT_ADDRESS,
-                    recipientType: STAKING_ACCOUNT_TYPE,
-                    recipientLabel: context.root.$t('Staking Contract') as string,
-                    validityStartHeight: useNetworkStore().state.height,
-                }).catch((error) => {
-                    throw new Error(error.data);
-                });
+                try {
+                    const stakingData = await sendStaking({
+                        type: StakingTransactionType.UPDATE_STAKER,
+                        delegation: address,
+                        value: 1, // Unused in transaction
+                        sender: activeAddress.value!,
+                        recipient: STAKING_CONTRACT_ADDRESS,
+                        recipientType: STAKING_ACCOUNT_TYPE,
+                        recipientLabel: context.root.$t('Staking Contract') as string,
+                        validityStartHeight: useNetworkStore().state.height,
+                    });
+                    context.emit('success', stakingData);
+                } catch (error: any) {
+                    context.emit('error', error.data);
+                }
             }
 
             context.emit('next');

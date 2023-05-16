@@ -29,15 +29,31 @@
             <StakingValidatorPage
                 @back="page = isStaking ? Page.Already : Page.Info"
                 @next="page = Page.Graph; closeOverlay()"
+                @success="onValidatorChangeSuccess"
+                @error="onValidatorChangeError"
             />
         </template>
         <template slot="overlay">
-            <SelectAccountOverlay v-if="overlay === Overlay.SelectAccount"
+            <div v-if="statusScreenOpened" class="page">
+                <StatusScreen
+                    :title="statusTitle"
+                    :state="statusState"
+                    :message="statusMessage"
+                    :mainAction="statusMainActionText"
+                    :alternativeAction="statusAlternativeActionText"
+                    @main-action="onStatusMainAction"
+                    @alternative-action="onStatusAlternativeAction"
+                    :lightBlue="true"
+                />
+            </div>
+            <SelectAccountOverlay v-else-if="overlay === Overlay.SelectAccount"
                 @selected="switchValidator"
             />
-            <StakingValidatorPage v-if="overlay === Overlay.Validator"
+            <StakingValidatorPage v-else-if="overlay === Overlay.Validator"
                 @back="page = isStaking ? Page.Already : Page.Info"
                 @next="page = Page.Graph; closeOverlay()"
+                @success="onValidatorChangeSuccess"
+                @error="onValidatorChangeError"
             />
         </template>
     </Modal>
@@ -49,11 +65,12 @@ import { useStakingStore } from '../../stores/Staking';
 import { useAddressStore } from '../../stores/Address';
 import Modal from '../modals/Modal.vue';
 import StakingWelcomePage from './StakingWelcomePage.vue';
-import StakingValidatorPage from './StakingValidatorOverlay.vue';
+import StakingValidatorPage from './StakingValidatorPage.vue';
 import StakingGraphPage from './StakingGraphPage.vue';
 import StakingInfoPage from './StakingInfoPage.vue';
 import StakingRewardsHistoryPage from './StakingRewardsHistoryPage.vue';
 import SelectAccountOverlay from './SelectAccountOverlay.vue';
+import StatusScreen, { State, SUCCESS_REDIRECT_DELAY } from '../StatusScreen.vue';
 
 enum Page {
     Info,
@@ -69,7 +86,7 @@ enum Overlay {
 }
 
 export default defineComponent({
-    setup() {
+    setup(props, context) {
         const { activeAddressInfo } = useAddressStore();
         const { activeValidator, activeStake } = useStakingStore();
         const page = ref(activeValidator.value ? Page.Already : Page.Info);
@@ -98,7 +115,20 @@ export default defineComponent({
         watch(page, (newPage) => showOverlayIfInvalidAccount(newPage as Page));
         watch(overlay, (newOverlay) => showOverlayIfInvalidAccount(newOverlay as Overlay));
 
+        /**
+         * Status Screen
+         */
+        const statusScreenOpened = ref(false);
+        const statusTitle = ref(context.root.$t('Sending Transaction')); // TODO: update text
+        const statusState = ref(State.LOADING);
+        const statusMessage = ref('');
+        const statusMainActionText = ref(context.root.$t('Retry'));
+        const statusAlternativeActionText = ref(context.root.$t('Edit transaction')); // TODO: update text
+
         return {
+            Page,
+            Overlay,
+
             page,
             overlay,
             activeValidator,
@@ -107,8 +137,13 @@ export default defineComponent({
             closeOverlay,
             invalidAccount,
             isStaking,
-            Page,
-            Overlay,
+
+            statusScreenOpened,
+            statusTitle,
+            statusState,
+            statusMessage,
+            statusMainActionText,
+            statusAlternativeActionText,
         };
     },
     components: {
@@ -119,6 +154,7 @@ export default defineComponent({
         StakingInfoPage,
         StakingRewardsHistoryPage,
         SelectAccountOverlay,
+        StatusScreen,
     },
 });
 </script>
